@@ -10,7 +10,7 @@ import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from ..ring_buffer import FastRingBuffer
+from unitelem.ring_buffer import FastRingBuffer
 
 
 def make_item(i: int) -> tuple:

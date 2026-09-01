@@ -2,7 +2,7 @@ import unittest
 import time
 import socket
 
-from ..node import Node
+from unitelem.node import Node
 
 
 class TestNodeIntegration(unittest.TestCase):

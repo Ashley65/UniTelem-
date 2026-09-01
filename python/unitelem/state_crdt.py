@@ -7,7 +7,7 @@ Guarantees mathematical eventual consistency across partitioned, asynchronous pe
 
 import threading
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 
 class LWWRegister:
@@ -67,7 +67,7 @@ class SwarmState:
     def merge_remote(self, node_id: str, topic: str, value: Any, lamport_time: int, wall_time: float = 0.0) -> bool:
         """
         Merges an incoming remote state update into the local state table.
-        Returns True if the local state was created or updated with a strictly newer value.
+        Returns True if local state was created or updated with a strictly newer value.
         """
         with self._lock:
             self._clock = max(self._clock, lamport_time) + 1
@@ -80,13 +80,64 @@ class SwarmState:
             else:
                 return node_topics[topic].merge(remote_reg)
 
+    def merge_batch(self, records: List[Dict[str, Any]]) -> int:
+        """
+        Merges a batch of state records (used during Anti-Entropy repair).
+        Returns the number of registers updated.
+        """
+        updated_count = 0
+        with self._lock:
+            for rec in records:
+                node_id = rec["node_id"]
+                topic = rec["topic"]
+                val = rec["value"]
+                l_ts = rec["lamport_time"]
+                w_ts = rec.get("wall_time", 0.0)
+
+                self._clock = max(self._clock, l_ts) + 1
+                remote_reg = LWWRegister(value=val, lamport_time=l_ts, wall_time=w_ts)
+                node_topics = self._state.setdefault(node_id, {})
+
+                if topic not in node_topics:
+                    node_topics[topic] = remote_reg
+                    updated_count += 1
+                elif node_topics[topic].merge(remote_reg):
+                    updated_count += 1
+        return updated_count
+
+    def get_registers_for_keys(self, keys: List[str]) -> List[Dict[str, Any]]:
+        """
+        Retrieves full register data for requested keys formatted as 'node_id:topic'.
+        """
+        results = []
+        with self._lock:
+            for key in keys:
+                if ":" in key:
+                    node_id, topic = key.split(":", 1)
+                elif "/" in key:
+                    node_id, topic = key.split("/", 1)
+                else:
+                    node_id, topic = self.node_id, key
+
+                node_topics = self._state.get(node_id)
+                if node_topics and topic in node_topics:
+                    reg = node_topics[topic]
+                    results.append({
+                        "node_id": node_id,
+                        "topic": topic,
+                        "value": reg.value,
+                        "lamport_time": reg.lamport_time,
+                        "wall_time": reg.wall_time,
+                    })
+        return results
+
     def get_value(self, path: str) -> Optional[Any]:
         """
         Direct O(1) state lookup.
         Supports both 'node_id/topic/subtopic' or 'topic/subtopic' (for local node).
         """
         with self._lock:
-            # 1. Check if the path starts with a known remote node_id
+            # 1. Check if path starts with a known remote node_id
             if "/" in path:
                 parts = path.split("/", 1)
                 potential_node = parts[0]
@@ -99,7 +150,7 @@ class SwarmState:
             if local_state and path in local_state:
                 return local_state[path].value
 
-            # 3. Fallback: check if the entire path exists as a key in any node
+            # 3. Fallback: check if entire path exists as a key in any node
             if "/" in path:
                 potential_node, potential_topic = path.split("/", 1)
                 if potential_node in self._state and path in self._state[potential_node]:

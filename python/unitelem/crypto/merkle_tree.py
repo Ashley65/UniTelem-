@@ -80,15 +80,22 @@ class StateMerkleTree:
             current_level = next_level
         return current_level[0]
 
-    def get_divergent_keys(self, other_leaves: Dict[str, bytes]) -> List[str]:
-        """Finds keys where leaf hashes differ between two trees."""
+    def get_divergent_keys(self, other_leaves: Dict[str, str]) -> List[str]:
+        """
+        Finds keys where leaf hashes differ between local and remote summaries.
+        other_leaves: Dict[str, str] (key -> hex hash)
+        """
         divergent = []
-        all_keys = set(self._leaves.keys()) | set(other_leaves.keys())
+        local_hex = {k: v.hex() for k, v in self._leaves.items()}
+        all_keys = set(local_hex.keys()) | set(other_leaves.keys())
         for k in all_keys:
-            if self._leaves.get(k) != other_leaves.get(k):
+            if local_hex.get(k) != other_leaves.get(k):
                 divergent.append(k)
         return sorted(divergent)
 
-    def get_leaf_hashes(self) -> Dict[str, str]:
-        """Returns leaf hashes as hex strings for lightweight exchange."""
-        return {k: v.hex() for k, v in self._leaves.items()}
+    def get_summary(self) -> Dict[str, Any]:
+        """Returns a compact summary of the tree for anti-entropy gossip."""
+        return {
+            "root": self._root.hex(),
+            "leaves": {k: v.hex() for k, v in self._leaves.items()},
+        }

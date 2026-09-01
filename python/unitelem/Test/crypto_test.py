@@ -2,9 +2,9 @@ import unittest
 import os
 import time
 
-from ..crypto.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
-from ..crypto.hash_chain import MicroLedger, PeerLedgerTracker, compute_digest
-from ..crypto.merkle_tree import StateMerkleTree
+from unitelem.crypto.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+from unitelem.crypto.hash_chain import MicroLedger, PeerLedgerTracker, compute_digest
+from unitelem.crypto.merkle_tree import StateMerkleTree
 
 
 class TestEd25519(unittest.TestCase):

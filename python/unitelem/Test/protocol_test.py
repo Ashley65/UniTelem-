@@ -1,8 +1,8 @@
 import unittest
 import time
 
-from ..protocol.crc16 import compute_crc16, append_crc16, verify_crc16
-from ..protocol.ccsds import CCSDSFrame
+from unitelem.protocol.crc16 import compute_crc16, append_crc16, verify_crc16
+from unitelem.protocol.ccsds import CCSDSFrame
 
 
 class TestCRC16(unittest.TestCase):

@@ -19,6 +19,12 @@ CCSDS_TYPE_TELEMETRY = 0
 CCSDS_SEC_HDR_PRESENT = 1
 CCSDS_SEQ_UNSEGMENTED = 3
 
+# Application Process IDs (APIDs)
+APID_TELEMETRY = 0x100      # Real-time streaming telemetry
+APID_AE_DIGEST = 0x110      # Anti-Entropy Merkle Root & Leaf summary
+APID_AE_REQUEST = 0x111     # Anti-Entropy Targeted repair request
+APID_AE_RESPONSE = 0x112    # Anti-Entropy Targeted state repair batch
+
 
 class CCSDSFrame:
     """
@@ -49,7 +55,7 @@ class CCSDSFrame:
         timestamp_ns: int = 0,
         prev_hash: bytes = b"\x00" * 16,
         signature: bytes = b"\x00" * 64,
-        apid: int = 0x100,
+        apid: int = APID_TELEMETRY,
         lamport_time: int = 0,
     ):
         self.node_id = node_id
@@ -184,28 +190,3 @@ class CCSDSFrame:
             return json.loads(self.payload.decode("utf-8"))
         except Exception:
             return self.payload
-
-
-# --------------------------------------------------------------------------
-# Profile B: Universal JSON Serializer
-# --------------------------------------------------------------------------
-
-def serialize_json_frame(node_id: str, topic: str, value: Any, lamport_time: int, timestamp_ns: int, prev_hash: bytes, signature: bytes) -> bytes:
-    """Serializes telemetry into Profile B human-readable JSON."""
-    doc = {
-        "node": node_id,
-        "topic": topic,
-        "val": value,
-        "l_ts": lamport_time,
-        "ts_ns": timestamp_ns,
-        "prev_h": prev_hash.hex(),
-        "sig": signature.hex(),
-    }
-    return json.dumps(doc).encode("utf-8")
-
-
-def deserialize_json_frame(raw_json: bytes) -> Optional[dict]:
-    try:
-        return json.loads(raw_json.decode("utf-8"))
-    except Exception:
-        return None

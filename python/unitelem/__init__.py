@@ -2,7 +2,8 @@
 UniTelem: Universal Decentralized Telemetry SDK.
 """
 
-from .node import Node
+from .Nodes.node import Node
+from .Nodes.processorNode import ProcessorNode
 from .ring_buffer import FastRingBuffer
 from .state_crdt import SwarmState, LWWRegister
 from .crypto.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
@@ -15,6 +16,7 @@ __version__ = "0.1.0"
 
 __all__ = [
     "Node",
+    "ProcessorNode",
     "FastRingBuffer",
     "SwarmState",
     "LWWRegister",

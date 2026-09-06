@@ -69,7 +69,7 @@ class FastRingBuffer(Generic[T]):
         with self._lock:
             overflow = (len(self._buffer) + len(item_list)) - self._capacity
             if overflow > 0:
-                self._dropped_count += min(overflow, len(self._buffer) + len(item_list))
+                self._dropped_count += overflow
             self._buffer.extend(item_list)
         return len(item_list)
 

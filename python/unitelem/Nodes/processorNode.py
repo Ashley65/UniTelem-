@@ -12,7 +12,7 @@ import queue
 import threading
 import time
 
-from node import Node
+from .node import Node
 
 
 class ProcessorNode(Node):
@@ -103,8 +103,16 @@ class ProcessorNode(Node):
             except queue.Empty:
                 continue
 
-            # Look up handler for specific topic or wildcard '*' fallback
-            handler = self._processing_callbacks.get(topic) or self._processing_callbacks.get("*")
+            # Look up handler for specific topic, prefix wildcard, or global '*' fallback
+            handler = self._processing_callbacks.get(topic)
+            if not handler:
+                for pattern, h in self._processing_callbacks.items():
+                    if pattern == "*":
+                        handler = h
+                        break
+                    elif pattern.endswith("*") and topic.startswith(pattern[:-1]):
+                        handler = h
+                        break
             if handler:
                 try:
                     output = handler(topic, payload, sender)

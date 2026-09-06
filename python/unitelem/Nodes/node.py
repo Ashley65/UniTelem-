@@ -2,7 +2,7 @@
 UniTelem Node Orchestrator (SPEC-UNITELEM-2026-V1 Section 1 & Section 5.1).
 
 Primary developer-facing entrypoint for decentralized telemetry publishing,
-zero-trust cryptographic verification, CRDT state synchronization, and anti-entropy repair.
+zero-trust cryptographic verification, CRDT state synchronization, and embedded dashboard.
 """
 
 from typing import Any, Optional, Callable, Dict
@@ -19,7 +19,8 @@ from ..state_crdt import SwarmState
 
 class Node:
     """
-    Decentralized Telemetry Node with integrated Zero-Trust Micro-Ledger and Anti-Entropy Engine.
+    Decentralized Telemetry Node with integrated Zero-Trust Micro-Ledger, Anti-Entropy Engine,
+    and Embedded Live Web Dashboard.
     """
 
     def __init__(
@@ -39,6 +40,7 @@ class Node:
         self.enable_crypto = enable_crypto
         self.enable_anti_entropy = enable_anti_entropy
         self.anti_entropy_interval_s = anti_entropy_interval_s
+        self._dashboard_server: Optional[Any] = None
         
         # 1. Cryptographic Keypair & Signer
         if enable_crypto:
@@ -105,12 +107,30 @@ class Node:
         self._transport.start()
 
     def stop(self):
-        """Gracefully shuts down transport workers and closes network sockets."""
+        """Gracefully shuts down transport workers, closes network sockets, and stops dashboard."""
         if not self._running:
             return
         self._running = False
+        self.stop_dashboard()
         self._discovery.stop()
         self._transport.stop()
+
+    def start_dashboard(self, port: int = 8080, host: str = "127.0.0.1") -> str:
+        """
+        Spawns the embedded zero-dependency live telemetry web HUD.
+        Returns the access URL (e.g. 'http://localhost:8080').
+        """
+        from ..dashboard.server import DashboardServer
+        if self._dashboard_server is None:
+            self._dashboard_server = DashboardServer(self, port=port, host=host)
+            return self._dashboard_server.start()
+        return f"http://localhost:{self._dashboard_server.bound_port}"
+
+    def stop_dashboard(self):
+        """Stops the embedded dashboard web server."""
+        if self._dashboard_server is not None:
+            self._dashboard_server.stop()
+            self._dashboard_server = None
 
     def publish(self, topic: str, data: Any) -> None:
         """
@@ -128,7 +148,7 @@ class Node:
         """
         Registers a callback triggered when cryptographically verified telemetry arrives.
         Callback signature: callback(topic: str, value: Any, sender_node_id: str)
-        Use topic='*' to receive updates on all topics.
+        Use topic='*' or prefix like 'sensors/*' to receive matching topic updates.
         """
         self._transport.subscribe(topic, callback)
 

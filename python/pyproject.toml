@@ -33,6 +33,10 @@ accel = [
     "cryptography>=41.0.0",
     "pyzmq>=25.0.0",
 ]
+ai = [
+    "onnxruntime>=1.16.0",
+    "numpy>=1.20.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

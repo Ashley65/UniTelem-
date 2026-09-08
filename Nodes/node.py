@@ -33,7 +33,15 @@ class Node:
         auto_start: bool = True,
         enable_anti_entropy: bool = True,
         anti_entropy_interval_s: float = 0.5,
+        transport_backend: str = "udp"
     ):
+
+        if transport_backend == "zmq":
+            from ..network.zmq_transport import ZMQTransport
+            transport_cls = ZMQTransport
+        else:
+            transport_cls = MeshTransport
+
         self.node_id = node_id
         self.swarm_id = swarm_id
         self.port = port
@@ -81,7 +89,7 @@ class Node:
             discovery=self._discovery,
             merkle_tree=self._merkle_tree,
             enable_anti_entropy=enable_anti_entropy,
-            anti_entropy_interval_s=anti_entropy_interval_s,
+            anti_entropy_interval_s=anti_entropy_interval_s
         )
 
         self._running = False

@@ -193,7 +193,7 @@ class ZMQTransport:
             pass
 
     def _broadcast_anti_entropy_digest(self):
-        """Computes local Merkle tree summary and broadcasts an APID_AE_DIGEST frame."""
+        """Computes a local Merkle tree summary and broadcasts an APID_AE_DIGEST frame."""
         self._sync_discovered_peers()
         with self._lock:
             self.merkle_tree.update_from_state(

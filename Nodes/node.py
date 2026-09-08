@@ -209,7 +209,7 @@ class Node:
         return self._discovery.get_active_peers()
 
     def _on_peer_found(self, peer_id: str, ip: str, port: int, pub_key_hex: str):
-        """Called automatically by discovery daemon when a new peer joins the mesh."""
+        """Called automatically by discovery daemon when a new peer joins the mesh. """
         if pub_key_hex:
             self._transport.register_peer_key(peer_id, pub_key_hex)
 

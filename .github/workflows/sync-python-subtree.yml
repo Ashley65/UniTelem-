@@ -1,0 +1,48 @@
+name: Sync UniTelem-Python into main/python
+
+on:
+  push:
+    branches:
+      - UniTelem-Python
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-subtree:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch source branch
+        run: git fetch origin UniTelem-Python
+
+      - name: Sync subtree into python/
+        run: |
+          if [ ! -d "python" ]; then
+            echo "Directory python/ does not exist. Initializing subtree..."
+            git subtree add --prefix=python origin UniTelem-Python --squash -m "chore: initialize python/ subtree"
+          else
+            echo "Directory python/ exists. Pulling updates..."
+            git subtree pull --prefix=python origin UniTelem-Python --squash -m "chore: sync UniTelem-Python into python/"
+          fi
+
+      - name: Push changes to main
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "chore: sync UniTelem-Python into python/"
+            git push origin main
+          else
+            echo "No changes to push."
+          fi

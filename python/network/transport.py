@@ -68,6 +68,7 @@ class MeshTransport:
         # Direct static peers: node_id -> (ip, port)
         self.direct_peers: Dict[str, Tuple[str, int]] = {}
         self._callbacks: Dict[str, List[Callable[[str, Any, str], None]]] = {}  # topic -> [fn(topic, val, node_id)]
+        self._packet_taps: List[Callable[[str, int, str, int, bytes, float], None]] = []
         
         self._running = False
         self._stop_event = threading.Event()
@@ -92,6 +93,18 @@ class MeshTransport:
             self.direct_peers[peer_id] = (ip, port)
         if pub_key_hex:
             self.register_peer_key(peer_id, pub_key_hex)
+
+    def add_packet_tap(self, callback: Callable[[str, int, str, int, bytes, float], None]):
+        """Registers a packet tap hook: callback(src_ip, src_port, dst_ip, dst_port, wire_bytes, timestamp)."""
+        with self._lock:
+            if callback not in self._packet_taps:
+                self._packet_taps.append(callback)
+
+    def remove_packet_tap(self, callback: Callable[[str, int, str, int, bytes, float], None]):
+        """Deregisters a packet tap hook."""
+        with self._lock:
+            if callback in self._packet_taps:
+                self._packet_taps.remove(callback)
 
     def subscribe(self, topic: str, callback: Callable[[str, Any, str], None]):
         """Registers a callback for updates on a specific topic or '*' for all topics."""
@@ -159,15 +172,27 @@ class MeshTransport:
             peers.update(discovered)
         return peers
 
+    def _transmit_raw(self, target_ip: str, target_port: int, wire_packet: bytes):
+        """Transmits raw packet over UDP socket and notifies registered packet taps."""
+        now = time.time()
+        with self._lock:
+            taps = list(self._packet_taps)
+        for tap in taps:
+            try:
+                tap("127.0.0.1", self.port, target_ip, target_port, wire_packet, now)
+            except Exception:
+                pass
+        try:
+            self._sock.sendto(wire_packet, (target_ip, target_port))
+        except Exception:
+            pass
+
     def _send_frame(self, frame: CCSDSFrame, target_ip: str, target_port: int):
         """Signs and transmits a single frame over UDP."""
         if self.signer:
             frame.signature = self.signer.sign(frame.signable_bytes())
         wire_packet = frame.pack()
-        try:
-            self._sock.sendto(wire_packet, (target_ip, target_port))
-        except Exception:
-            pass
+        self._transmit_raw(target_ip, target_port, wire_packet)
 
     def _broadcast_anti_entropy_digest(self):
         """Computes local Merkle tree summary and broadcasts an APID_AE_DIGEST frame."""
@@ -267,10 +292,7 @@ class MeshTransport:
                 wire_packet = frame.pack()
 
                 for peer_id, (ip, port) in target_peers.items():
-                    try:
-                        self._sock.sendto(wire_packet, (ip, port))
-                    except Exception:
-                        pass
+                    self._transmit_raw(ip, port, wire_packet)
 
     def _rx_worker(self):
         """

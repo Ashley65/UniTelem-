@@ -13,3 +13,5 @@ Core Capabilities:
     - Zero-Shot Natural Language Search: Resolves operator queries ("find person in red jacket with backpack") across decentralized mesh detections.
 
 """
+
+

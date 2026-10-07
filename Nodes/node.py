@@ -140,6 +140,16 @@ class Node:
             self._dashboard_server.stop()
             self._dashboard_server = None
 
+    def attach_packet_tap(self, callback: Callable[[str, int, str, int, bytes, float], None]) -> None:
+        """Attaches a packet tap hook callback to intercept transmitted network frames."""
+        if hasattr(self._transport, "add_packet_tap"):
+            self._transport.add_packet_tap(callback)
+
+    def remove_packet_tap(self, callback: Callable[[str, int, str, int, bytes, float], None]) -> None:
+        """Removes a previously attached packet tap hook."""
+        if hasattr(self._transport, "remove_packet_tap"):
+            self._transport.remove_packet_tap(callback)
+
     def publish(self, topic: str, data: Any) -> None:
         """
         True sub-microsecond non-blocking publish (< 1μs).

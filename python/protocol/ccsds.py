@@ -76,7 +76,7 @@ class CCSDSFrame:
         swarm_hash_2b = self.swarm_hash.to_bytes(2, byteorder="big")
         topic_bytes = self.topic.encode("utf-8")
         return (
-            struct.pack(">HH", self.apid, self.seq & 0x3FFF)
+            struct.pack(">HQ", self.apid, self.seq)
             + swarm_hash_2b
             + node_id_16b
             + struct.pack(">Q", self.timestamp_ns)
@@ -109,6 +109,7 @@ class CCSDSFrame:
             + (self.prev_hash[:16].ljust(16, b"\x00"))
             + (self.signature[:64].ljust(64, b"\x00"))
             + struct.pack(">Q", self.lamport_time)
+            + struct.pack(">Q", self.seq)
             + struct.pack(">H", len(topic_bytes))
             + topic_bytes
         )
@@ -133,7 +134,7 @@ class CCSDSFrame:
         Unpacks and validates a binary CCSDS frame with CRC-16 verification.
         Returns None if CRC fails or frame is malformed.
         """
-        if len(raw_bytes) < 6 + 2 + 16 + 8 + 16 + 64 + 8 + 2 + 2:  # Min length with CRC
+        if len(raw_bytes) < 6 + 2 + 16 + 8 + 16 + 64 + 8 + 8 + 2 + 2:  # Min length with CRC
             return None
             
         if not verify_crc16(raw_bytes):
@@ -142,8 +143,10 @@ class CCSDSFrame:
         data = raw_bytes[:-2]  # Strip CRC
         
         w1, w2, w3 = struct.unpack(">HHH", data[:6])
+        if (w3 + 1) != (len(data) - 6):
+            return None
         apid = w1 & 0x07FF
-        seq = w2 & 0x3FFF
+        seq14 = w2 & 0x3FFF
         
         offset = 6
         swarm_hash_2b = struct.unpack(">H", data[offset : offset + 2])[0]
@@ -163,6 +166,11 @@ class CCSDSFrame:
         
         lamport_time = struct.unpack(">Q", data[offset : offset + 8])[0]
         offset += 8
+
+        seq = struct.unpack(">Q", data[offset : offset + 8])[0]
+        offset += 8
+        if (seq & 0x3FFF) != seq14:
+            return None
         
         topic_len = struct.unpack(">H", data[offset : offset + 2])[0]
         offset += 2
